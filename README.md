@@ -22,6 +22,10 @@ Aplikasi desktop/web-based untuk mengunduh video YouTube dengan fitur **pemiliha
 | :--- | :--- |
 | ![Format Video](docs/screenshots/format_video.png) | ![Audio Track](docs/screenshots/audio_track.png) |
 
+| Telemetri Real-Time Download (SSE) | Hasil Selesai & Manajemen File |
+| :--- | :--- |
+| ![Proses Download](docs/screenshots/downloading_process.png) | ![Proses Selesai](docs/screenshots/process_completed.png) |
+
 ---
 
 ## Fitur Utama
@@ -171,7 +175,9 @@ YT-Downloader/
 │   └── screenshots/          # Folder penyimpanan gambar pratinjau aplikasi
 │       ├── 1.png             # Screenshot tampilan dashboard utama
 │       ├── format_video.png  # Screenshot pemilihan format resolusi video & codec
-│       └── audio_track.png   # Screenshot pemilihan track audio & dubbing
+│       ├── audio_track.png   # Screenshot pemilihan track audio & dubbing
+│       ├── downloading_process.png # Screenshot telemetri proses download real-time
+│       └── process_completed.png   # Screenshot kartu status unduhan selesai
 ├── hasil/                    # Direktori penyimpanan utama (otomatis dibuat)
 │   └── [Judul Video]/        # Folder per video
 │       └── [Judul Video].mp4 # File MP4 final hasil muxing
