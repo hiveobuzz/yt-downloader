@@ -26,11 +26,12 @@ Aplikasi desktop/web-based untuk mengunduh video YouTube dengan fitur **pemiliha
 
 ## Fitur Utama
 
-- **Multi-Audio Track & Dubbing Picker**: Mendeteksi seluruh track audio yang tersedia (Bahasa Indonesia, English, Spanish, Japanese, Dubbing Auto YouTube, dan Original). Pengguna dapat memilih track audio spesifik yang ingin digabungkan ke video.
+- **Mode Switcher (Video MP4 / Audio Only MP3)**: Beralih cepat dengan satu klik antara mode unduh video resolusi tinggi (MP4) atau ekstraksi audio murni berkecepatan tinggi ke format MP3 320 kbps High Quality dengan penyematan metadata otomatis.
+- **Multi-Audio Track & Dubbing Picker**: Mendeteksi seluruh track audio yang tersedia (Bahasa Indonesia, English, Spanish, Japanese, Dubbing Auto YouTube, dan Original). Pengguna dapat memilih track audio spesifik yang ingin digabungkan ke video atau dikonversi ke MP3.
 - **Pemilihan Resolusi Murni (Video-Only Stream)**: Mendukung seluruh spektrum resolusi YouTube (4K 2160p, 1440p, 1080p60 HDR, 720p, dsb.) langsung dari stream DASH asli.
-- **Lossless FFmpeg Muxing**: Menggabungkan stream video murni dan track audio pilihan tanpa penurunan kualitas (menggunakan konfigurasi `-c:v copy -c:a aac` ke dalam container `.mp4`).
-- **Real-Time Live Telemetry (SSE)**: Memantau progres unduhan secara live dengan indikator persentase, kecepatan transfer (MB/s), estimasi waktu (ETA), dan tahapan pipeline (Probing -> Video -> Audio -> FFmpeg Muxing -> Finalizing).
-- **Manajemen File Otomatis**: Setiap video otomatis dibuatkan folder khusus di direktori `/hasil/[Judul Video]/[Judul Video].mp4` dengan sanitasi karakter ilegal Windows/Linux.
+- **Lossless FFmpeg Muxing & Converting**: Menggabungkan stream video murni dan track audio pilihan tanpa penurunan kualitas (`-c:v copy -c:a aac` untuk MP4, atau ekstraksi audio bitrate tinggi 320 kbps untuk MP3).
+- **Real-Time Live Telemetry (SSE)**: Memantau progres unduhan secara live dengan indikator persentase, kecepatan transfer (MB/s), estimasi waktu (ETA), dan tahapan pipeline (Probing -> Video/Audio -> FFmpeg Muxing/Encoding -> Finalizing).
+- **Manajemen File Otomatis**: Setiap video otomatis dibuatkan folder khusus di direktori `/hasil/[Judul Video]/[Judul Video].[mp4/mp3]` dengan sanitasi karakter ilegal Windows/Linux.
 - **Integrasi Native File Explorer**: Akses satu klik untuk langsung membuka lokasi file dan menyorot (highlight) video di Windows File Explorer.
 - **Anti-Bot & JS Challenge Solver**: Dikonfigurasi dengan client `web_embedded` dan `android` extractor serta dukungan runtime Node.js untuk meminimalkan pembatasan akses.
 - **Antarmuka Cyber-Terminal**: Tampilan dashboard bertema gelap, tipografi JetBrains Mono dan Space Grotesk, visualisasi status, dan tata letak responsif.
@@ -196,13 +197,28 @@ Backend menyediakan endpoint API berbasis JSON dan SSE:
 | `GET` | `/api/stream-file?path=...` | Mengunduh file langsung melalui stream browser |
 
 ### Contoh Request `/api/download`:
+
+**1. Mode Video (MP4):**
 ```json
 POST /api/download
 Content-Type: application/json
 
 {
   "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "mode": "video",
   "video_format_id": "137",
+  "audio_format_id": "251"
+}
+```
+
+**2. Mode Audio Only (MP3 320kbps):**
+```json
+POST /api/download
+Content-Type: application/json
+
+{
+  "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+  "mode": "mp3",
   "audio_format_id": "251"
 }
 ```

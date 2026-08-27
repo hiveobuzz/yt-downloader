@@ -73,22 +73,35 @@ def api_formats():
 @app.route("/api/download", methods=["POST"])
 def api_download():
     """
-    Memulai proses download di background thread dan langsung mengembalikan job_id
-    agar frontend dapat mendengarkan progres real-time.
+    Memulai proses download/convert di background thread dan langsung mengembalikan job_id
+    agar frontend dapat mendengarkan progres real-time via SSE.
     """
     data = request.get_json() or {}
     url = data.get("url", "").strip()
+    mode = data.get("mode", "video")  # 'video' atau 'mp3'
     video_format_id = data.get("video_format_id")
     audio_format_id = data.get("audio_format_id")
 
-    if not url or not video_format_id or not audio_format_id:
-        return jsonify({"error": "Parameter url, video_format_id, dan audio_format_id wajib diisi."}), 400
+    if not url:
+        return jsonify({"error": "URL YouTube wajib diisi."}), 400
+
+    if mode == "video" and (not video_format_id or not audio_format_id):
+        return jsonify({"error": "Parameter url, video_format_id, dan audio_format_id wajib diisi untuk mode video."}), 400
+
+    if mode in ["mp3", "audio"] and not audio_format_id:
+        audio_format_id = "bestaudio"
 
     job_id = str(uuid.uuid4())
 
     def worker():
         try:
-            download_with_selected_tracks(url, video_format_id, audio_format_id, job_id=job_id)
+            download_with_selected_tracks(
+                url=url,
+                video_format_id=video_format_id,
+                audio_format_id=audio_format_id,
+                job_id=job_id,
+                mode=mode
+            )
         except Exception as err:
             print(f"[Worker Error] Job {job_id}: {err}")
 
@@ -97,7 +110,8 @@ def api_download():
 
     return jsonify({
         "status": "queued",
-        "job_id": job_id
+        "job_id": job_id,
+        "mode": mode
     })
 
 
@@ -177,11 +191,12 @@ def api_stream_file():
     """Mengunduh file langsung ke browser jika diperlukan."""
     file_path = request.args.get("path")
     if file_path and os.path.exists(file_path):
+        mime_type = "audio/mpeg" if file_path.lower().endswith(".mp3") else "video/mp4"
         return send_file(
             file_path,
             as_attachment=True,
             download_name=os.path.basename(file_path),
-            mimetype="video/mp4"
+            mimetype=mime_type
         )
     return jsonify({"error": "File tidak ditemukan"}), 404
 

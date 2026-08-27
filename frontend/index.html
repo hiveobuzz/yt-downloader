@@ -142,17 +142,49 @@
           </div>
         </div>
 
-        <!-- Section 3: Dual-Stream Selection Matrix -->
+        <!-- Section 3: Dual-Stream Selection Matrix & Format Switcher -->
         <div class="track-selector-section">
           <div class="section-label-bar">
             <span class="section-num">02</span>
             <span class="section-title">STREAM SELECTION MATRIX</span>
-            <span class="section-meta">VIDEO &amp; AUDIO MERGED VIA FFMPEG LOSSLESS COPY</span>
+            <span class="section-meta" id="matrixSectionMeta">MODE: VIDEO (MP4) • LOSSLESS STREAM MERGE</span>
           </div>
 
-          <div class="selector-grid">
+          <!-- Format Mode Switcher Tabs -->
+          <div class="mode-tabs-bar">
+            <button type="button" id="modeVideoBtn" class="mode-tab-item active" title="Unduh Video MP4 dengan Resolusi & Audio Track Pilihan">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <rect x="2" y="2" width="20" height="20" rx="2.18" ry="2.18"></rect>
+                <line x1="7" y1="2" x2="7" y2="22"></line>
+                <line x1="17" y1="2" x2="17" y2="22"></line>
+                <line x1="2" y1="12" x2="22" y2="12"></line>
+                <line x1="2" y1="7" x2="7" y2="7"></line>
+                <line x1="2" y1="17" x2="7" y2="17"></line>
+                <line x1="17" y1="17" x2="22" y2="17"></line>
+                <line x1="17" y1="7" x2="22" y2="7"></line>
+              </svg>
+              <div class="mode-tab-content">
+                <span class="mode-tab-name">VIDEO (MP4)</span>
+                <span class="mode-tab-desc">Resolusi hingga 4K + Audio Muxing</span>
+              </div>
+            </button>
+
+            <button type="button" id="modeAudioBtn" class="mode-tab-item" title="Ekstraksi Audio Murni ke Format MP3 320kbps">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path d="M9 18V5l12-2v13"></path>
+                <circle cx="6" cy="18" r="3"></circle>
+                <circle cx="18" cy="16" r="3"></circle>
+              </svg>
+              <div class="mode-tab-content">
+                <span class="mode-tab-name">AUDIO ONLY (MP3)</span>
+                <span class="mode-tab-desc">320 kbps High Quality Audio</span>
+              </div>
+            </button>
+          </div>
+
+          <div class="selector-grid" id="selectorGrid">
             <!-- Video Stream Selector -->
-            <div class="selector-box">
+            <div class="selector-box" id="videoSelectorBox">
               <div class="box-header">
                 <!-- Custom Film Frame Icon -->
                 <svg class="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -176,7 +208,7 @@
             </div>
 
             <!-- Audio Stream Selector -->
-            <div class="selector-box">
+            <div class="selector-box" id="audioSelectorBox">
               <div class="box-header">
                 <!-- Custom Audio Waveform / VU Spectrum Icon -->
                 <svg class="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
@@ -188,8 +220,8 @@
                   <line x1="20" y1="11" x2="20" y2="13"></line>
                 </svg>
                 <div class="box-header-text">
-                  <span class="box-title">AUDIO DUBBING TRACK (SINGLE STREAM)</span>
-                  <span class="box-desc">Multi-language master track (Indonesian, English, etc.)</span>
+                  <span class="box-title" id="audioBoxTitle">AUDIO DUBBING TRACK (SINGLE STREAM)</span>
+                  <span class="box-desc" id="audioBoxDesc">Multi-language master track (Indonesian, English, etc.)</span>
                 </div>
               </div>
               <div class="custom-select-container">

@@ -26,6 +26,16 @@ const videoSelect = document.getElementById("videoSelect");
 const audioSelect = document.getElementById("audioSelect");
 const targetFolderPreview = document.getElementById("targetFolderPreview");
 
+const modeVideoBtn = document.getElementById("modeVideoBtn");
+const modeAudioBtn = document.getElementById("modeAudioBtn");
+const matrixSectionMeta = document.getElementById("matrixSectionMeta");
+const selectorGrid = document.getElementById("selectorGrid");
+const videoSelectorBox = document.getElementById("videoSelectorBox");
+const audioSelectorBox = document.getElementById("audioSelectorBox");
+const audioBoxTitle = document.getElementById("audioBoxTitle");
+const audioBoxDesc = document.getElementById("audioBoxDesc");
+const downloadBtnText = document.getElementById("downloadBtnText");
+
 const downloadBtn = document.getElementById("downloadBtn");
 const downloadStatusBox = document.getElementById("downloadStatusBox");
 const statusMessage = document.getElementById("statusMessage");
@@ -49,6 +59,7 @@ const openSavedFolderBtn = document.getElementById("openSavedFolderBtn");
 const streamBrowserBtn = document.getElementById("streamBrowserBtn");
 
 let currentVideoData = null;
+let currentMode = "video"; // 'video' atau 'mp3'
 let lastDownloadResult = null;
 let activeEventSource = null;
 let activePollInterval = null;
@@ -169,6 +180,41 @@ async function analyzeVideo() {
   }
 }
 
+// Mode Switcher Management
+function updatePreviewPath() {
+  if (!currentVideoData) return;
+  const safeName = sanitizeForPreview(currentVideoData.title);
+  const ext = currentMode === "mp3" ? "mp3" : "mp4";
+  targetFolderPreview.textContent = `H:\\YT-Downloader\\hasil\\${safeName}\\${safeName}.${ext}`;
+}
+
+function setMode(mode) {
+  currentMode = mode;
+  if (mode === "mp3") {
+    modeVideoBtn.classList.remove("active");
+    modeAudioBtn.classList.add("active");
+    videoSelectorBox.classList.add("hidden");
+    selectorGrid.classList.add("audio-only-mode");
+    matrixSectionMeta.textContent = "MODE: AUDIO ONLY (MP3) • 320 KBPS CONVERSION";
+    if (audioBoxTitle) audioBoxTitle.textContent = "AUDIO TRACK TO CONVERT TO MP3";
+    if (audioBoxDesc) audioBoxDesc.textContent = "Pilih track bahasa / dubbing sumber yang ingin dikonversi ke MP3 320kbps";
+    if (downloadBtnText) downloadBtnText.textContent = "EXECUTE CONVERT & DOWNLOAD (MP3)";
+  } else {
+    modeAudioBtn.classList.remove("active");
+    modeVideoBtn.classList.add("active");
+    videoSelectorBox.classList.remove("hidden");
+    selectorGrid.classList.remove("audio-only-mode");
+    matrixSectionMeta.textContent = "MODE: VIDEO (MP4) • LOSSLESS STREAM MERGE";
+    if (audioBoxTitle) audioBoxTitle.textContent = "AUDIO DUBBING TRACK (SINGLE STREAM)";
+    if (audioBoxDesc) audioBoxDesc.textContent = "Multi-language master track (Indonesian, English, etc.)";
+    if (downloadBtnText) downloadBtnText.textContent = "EXECUTE DOWNLOAD & MUX";
+  }
+  updatePreviewPath();
+}
+
+modeVideoBtn.addEventListener("click", () => setMode("video"));
+modeAudioBtn.addEventListener("click", () => setMode("mp3"));
+
 // Render Results
 function renderVideoResult(data) {
   videoThumb.src = data.thumbnail || "";
@@ -176,8 +222,7 @@ function renderVideoResult(data) {
   videoAuthor.textContent = data.uploader ? data.uploader.toUpperCase() : "UNKNOWN_AUTHOR";
   videoDuration.textContent = formatDuration(data.duration);
 
-  const safeName = sanitizeForPreview(data.title);
-  targetFolderPreview.textContent = `H:\\YT-Downloader\\hasil\\${safeName}\\${safeName}.mp4`;
+  updatePreviewPath();
 
   audioTracksCount.textContent = `${data.audio_tracks.length} TRACKS`;
   videoTracksCount.textContent = `${data.video_tracks.length} FORMATS`;
@@ -283,12 +328,16 @@ async function downloadVideo() {
   downloadStatusBox.classList.remove("hidden");
 
   // Initial state
+  const initialPhase = currentMode === "mp3"
+    ? "INITIATING TASK & EXTRACTING AUDIO MANIFESTS..."
+    : "INITIATING TASK & EXTRACTING MANIFESTS...";
+
   updateTelemetryUI({
     status: "extracting",
     percent: 5.0,
     speed: "0.0 MB/s",
     eta: "--:--",
-    phase: "INITIATING TASK & EXTRACTING MANIFESTS...",
+    phase: initialPhase,
   });
 
   try {
@@ -300,6 +349,7 @@ async function downloadVideo() {
         url,
         video_format_id,
         audio_format_id,
+        mode: currentMode,
       }),
     });
 
@@ -385,9 +435,10 @@ function onDownloadComplete(resultData) {
 
   setTimeout(() => {
     downloadStatusBox.classList.add("hidden");
-    savedFileName.textContent = lastDownloadResult.filename || "output.mp4";
-    savedPathText.textContent = lastDownloadResult.file_path || "hasil/video.mp4";
-    successFileInfo.textContent = `SIZE: ${formatBytes(lastDownloadResult.file_size)} • CONTAINER: ISO MP4`;
+    savedFileName.textContent = lastDownloadResult.filename || (currentMode === "mp3" ? "output.mp3" : "output.mp4");
+    savedPathText.textContent = lastDownloadResult.file_path || (currentMode === "mp3" ? "hasil/audio.mp3" : "hasil/video.mp4");
+    const containerText = lastDownloadResult.format || (currentMode === "mp3" ? "MP3 AUDIO (320 kbps)" : "ISO MP4");
+    successFileInfo.textContent = `SIZE: ${formatBytes(lastDownloadResult.file_size)} • CONTAINER: ${containerText}`;
     successCard.classList.remove("hidden");
   }, 350);
 }
@@ -412,3 +463,4 @@ urlInput.addEventListener("keydown", (e) => {
   }
 });
 downloadBtn.addEventListener("click", downloadVideo);
+

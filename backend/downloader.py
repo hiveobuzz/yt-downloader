@@ -183,12 +183,19 @@ def get_video_info(url: str) -> dict:
     }
 
 
-def download_with_selected_tracks(url: str, video_format_id: str, audio_format_id: str, job_id: str = None) -> dict:
+def download_with_selected_tracks(
+    url: str,
+    video_format_id: str = None,
+    audio_format_id: str = None,
+    job_id: str = None,
+    mode: str = "video"
+) -> dict:
     """
-    Download video murni + audio track terpilih dengan real-time progress hook
-    dan FFmpeg stream muxing.
+    Download video + audio (mode='video') atau ekstraksi audio murni ke MP3 320kbps (mode='mp3').
+    Dilengkapi real-time progress hook dan FFmpeg conversion.
     """
     if job_id:
+        initial_phase = "PROBING MANIFESTS & STREAMS" if mode == "video" else "PROBING AUDIO STREAMS (MP3 MODE)"
         JOBS[job_id] = {
             "status": "extracting",
             "percent": 5.0,
@@ -196,7 +203,7 @@ def download_with_selected_tracks(url: str, video_format_id: str, audio_format_i
             "eta": "--:--",
             "downloaded_bytes": 0,
             "total_bytes": 0,
-            "phase": "PROBING MANIFESTS & STREAMS",
+            "phase": initial_phase,
             "result": None,
             "error": None,
         }
@@ -213,9 +220,6 @@ def download_with_selected_tracks(url: str, video_format_id: str, audio_format_i
         os.makedirs(target_folder, exist_ok=True)
 
         output_template = os.path.join(target_folder, f"{safe_title}.%(ext)s")
-        final_mp4_path = os.path.join(target_folder, f"{safe_title}.mp4")
-
-        format_selector = f"{video_format_id}+{audio_format_id}" if audio_format_id != "none" else video_format_id
 
         # Progress Hook yt-dlp untuk menangkap persenan, kecepatan, dan sisa waktu
         def yt_progress_hook(d):
@@ -237,8 +241,11 @@ def download_with_selected_tracks(url: str, video_format_id: str, audio_format_i
                     eta_str = d.get("_eta_str") or "--:--"
 
                 filename = d.get("filename", "")
-                is_audio = f".f{audio_format_id}." in filename or str(audio_format_id) in filename
-                phase_label = "DOWNLOADING AUDIO TRACK" if is_audio else "DOWNLOADING VIDEO STREAM"
+                if mode in ["mp3", "audio"]:
+                    phase_label = "DOWNLOADING HQ AUDIO TRACK (MP3 MODE)"
+                else:
+                    is_audio = f".f{audio_format_id}." in filename or str(audio_format_id) in filename
+                    phase_label = "DOWNLOADING AUDIO TRACK" if is_audio else "DOWNLOADING VIDEO STREAM"
 
                 # Scaling persen download (5% - 85%)
                 scaled_percent = 5.0 + (percent * 0.80)
@@ -255,12 +262,17 @@ def download_with_selected_tracks(url: str, video_format_id: str, audio_format_i
                 })
 
             elif status == "finished":
+                next_phase = (
+                    "STREAM DOWNLOAD COMPLETE • PREPARING FFMPEG MP3 ENCODER"
+                    if mode in ["mp3", "audio"]
+                    else "STREAM DOWNLOAD COMPLETE • PREPARING FFMPEG"
+                )
                 JOBS[job_id].update({
                     "status": "muxing",
                     "percent": 88.0,
                     "speed": "FFmpeg",
                     "eta": "00:03",
-                    "phase": "STREAM DOWNLOAD COMPLETE • PREPARING FFMPEG",
+                    "phase": next_phase,
                 })
 
         def yt_postprocessor_hook(d):
@@ -269,56 +281,97 @@ def download_with_selected_tracks(url: str, video_format_id: str, audio_format_i
 
             status = d.get("status")
             if status == "started":
+                post_phase = (
+                    "FFMPEG CONVERTING AUDIO TO MP3 (320kbps CBR)"
+                    if mode in ["mp3", "audio"]
+                    else "FFMPEG LOSSLESS MUXING (-map 0:v:0 -map 1:a:0)"
+                )
                 JOBS[job_id].update({
                     "status": "muxing",
                     "percent": 92.0,
                     "speed": "FFmpeg Core",
                     "eta": "00:02",
-                    "phase": "FFMPEG LOSSLESS MUXING (-map 0:v:0 -map 1:a:0)",
+                    "phase": post_phase,
                 })
             elif status == "finished":
+                final_phase = (
+                    "EMBEDDING METADATA & WRITING MP3 FILE"
+                    if mode in ["mp3", "audio"]
+                    else "FINALIZING CONTAINER & WRITING TO DISK"
+                )
                 JOBS[job_id].update({
                     "status": "finalizing",
                     "percent": 98.0,
                     "speed": "I/O Disk",
                     "eta": "00:01",
-                    "phase": "FINALIZING CONTAINER & WRITING TO DISK",
+                    "phase": final_phase,
                 })
 
-        ydl_opts = {
-            **BASE_YDL_OPTS,
-            "format": format_selector,
-            "outtmpl": output_template,
-            "merge_output_format": "mp4",
-            "progress_hooks": [yt_progress_hook],
-            "postprocessor_hooks": [yt_postprocessor_hook],
-            "postprocessor_args": {
-                "merger": ["-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac"]
-            },
-            "postprocessors": [{
-                "key": "FFmpegVideoConvertor",
-                "preferedformat": "mp4",
-            }],
-        }
+        if mode in ["mp3", "audio"]:
+            # Mode MP3: Audio-only stream extraction + FFmpeg to MP3 (320kbps)
+            format_selector = audio_format_id if audio_format_id and audio_format_id != "none" else "bestaudio"
+            final_file_path = os.path.join(target_folder, f"{safe_title}.mp3")
+
+            ydl_opts = {
+                **BASE_YDL_OPTS,
+                "format": format_selector,
+                "outtmpl": output_template,
+                "progress_hooks": [yt_progress_hook],
+                "postprocessor_hooks": [yt_postprocessor_hook],
+                "postprocessors": [
+                    {
+                        "key": "FFmpegExtractAudio",
+                        "preferredcodec": "mp3",
+                        "preferredquality": "320",
+                    },
+                    {
+                        "key": "FFmpegMetadata",
+                        "add_metadata": True,
+                    }
+                ],
+            }
+        else:
+            # Mode Video: Dual-stream download + FFmpeg lossless mux to MP4
+            format_selector = f"{video_format_id}+{audio_format_id}" if audio_format_id != "none" else video_format_id
+            final_file_path = os.path.join(target_folder, f"{safe_title}.mp4")
+
+            ydl_opts = {
+                **BASE_YDL_OPTS,
+                "format": format_selector,
+                "outtmpl": output_template,
+                "merge_output_format": "mp4",
+                "progress_hooks": [yt_progress_hook],
+                "postprocessor_hooks": [yt_postprocessor_hook],
+                "postprocessor_args": {
+                    "merger": ["-map", "0:v:0", "-map", "1:a:0", "-c:v", "copy", "-c:a", "aac"]
+                },
+                "postprocessors": [{
+                    "key": "FFmpegVideoConvertor",
+                    "preferedformat": "mp4",
+                }],
+            }
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])
 
-        if not os.path.exists(final_mp4_path):
+        if not os.path.exists(final_file_path):
+            expected_ext = ".mp3" if mode in ["mp3", "audio"] else (".mp4", ".mkv", ".webm")
             for fname in os.listdir(target_folder):
-                if fname.endswith((".mp4", ".mkv", ".webm")):
-                    final_mp4_path = os.path.join(target_folder, fname)
+                if fname.endswith(expected_ext):
+                    final_file_path = os.path.join(target_folder, fname)
                     break
 
-        file_size_bytes = os.path.getsize(final_mp4_path) if os.path.exists(final_mp4_path) else 0
+        file_size_bytes = os.path.getsize(final_file_path) if os.path.exists(final_file_path) else 0
 
         result = {
             "success": True,
+            "mode": "mp3" if mode in ["mp3", "audio"] else "video",
             "title": raw_title,
-            "filename": os.path.basename(final_mp4_path),
-            "file_path": final_mp4_path,
+            "filename": os.path.basename(final_file_path),
+            "file_path": final_file_path,
             "folder_path": target_folder,
             "file_size": file_size_bytes,
+            "format": "MP3 Audio (320 kbps)" if mode in ["mp3", "audio"] else "MPEG-4 (.MP4)",
         }
 
         if job_id and job_id in JOBS:
