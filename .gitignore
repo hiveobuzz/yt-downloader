@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+venv/
+env/
+.venv/
+
+# Output & Downloads directory
+backend/downloads/
+downloads/
+hasil/
+Hasil/
+*.mp4
+*.m4a
+*.webm
+*.mkv
+
+# OS
+.DS_Store
+Thumbs.db

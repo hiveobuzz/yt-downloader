@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="YouTube Stream Extractor & Muxing Tool — yt-dlp + FFmpeg power-user utility with real-time download telemetry and multi-audio track selection.">
+  <title>YT Stream Extractor &amp; Muxer (yt-dlp + FFmpeg)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <!-- Top System Telemetry Bar -->
+    <header class="sys-header">
+      <div class="sys-brand">
+        <!-- Custom Tape/Film Reel Single-Weight Line Icon -->
+        <div class="sys-logo">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9.5"></circle>
+            <circle cx="12" cy="12" r="3"></circle>
+            <circle cx="12" cy="5.5" r="1.25" fill="currentColor"></circle>
+            <circle cx="17.63" cy="15.25" r="1.25" fill="currentColor"></circle>
+            <circle cx="6.37" cy="15.25" r="1.25" fill="currentColor"></circle>
+            <line x1="12" y1="2.5" x2="12" y2="4.25"></line>
+            <line x1="20.22" y1="16.75" x2="18.7" y2="15.88"></line>
+            <line x1="3.78" y1="16.75" x2="5.3" y2="15.88"></line>
+          </svg>
+        </div>
+        <div class="sys-title-group">
+          <div class="sys-title">
+            <span>YT STREAM EXTRACTOR</span>
+            <span class="sys-tag">POWER-USER v2.5</span>
+          </div>
+          <div class="sys-sub">yt-dlp Engine • FFmpeg Muxer • Multi-Audio Matrix</div>
+        </div>
+      </div>
+
+      <div class="sys-status-bar">
+        <div class="status-pill">
+          <span class="status-led led-active"></span>
+          <span class="status-label">ENGINE: READY</span>
+        </div>
+        <button id="openMainFolderBtn" class="btn-terminal-sm" title="Buka folder root penyimpanan di Windows File Explorer">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+            <path d="M3 6h6l2 2.5h10v10.5H3V6z"></path>
+            <line x1="3" y1="11" x2="21" y2="11"></line>
+          </svg>
+          <span>ROOT: /hasil</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Workspace Matrix -->
+    <main class="workspace-card">
+      <!-- Section 1: URL Intake Terminal -->
+      <div class="intake-section">
+        <div class="section-label-bar">
+          <span class="section-num">01</span>
+          <span class="section-title">TARGET URL STREAM</span>
+          <span class="section-meta">FORMAT: HTTPS://YOUTUBE.COM/WATCH?V=...</span>
+        </div>
+
+        <div class="cli-input-bar">
+          <div class="cli-prompt-symbol">&gt;_</div>
+          <input 
+            type="url" 
+            id="urlInput" 
+            placeholder="Paste YouTube Video / Shorts URL here..." 
+            autocomplete="off" 
+            spellcheck="false"
+          >
+          <button id="pasteBtn" class="btn-cli-addon" title="Paste dari Clipboard">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+              <rect x="8" y="2" width="8" height="4" rx="0.5"></rect>
+              <path d="M16 4h3v17H5V4h3"></path>
+              <line x1="9" y1="10" x2="15" y2="10"></line>
+              <line x1="9" y1="14" x2="13" y2="14"></line>
+            </svg>
+            <span>PASTE</span>
+          </button>
+          <button id="fetchBtn" class="btn-solid-accent">
+            <span>EXTRACT METRICS</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="4" y1="12" x2="20" y2="12"></line>
+              <polyline points="14 6 20 12 14 18"></polyline>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- State: Loading Telemetry -->
+      <div id="loadingState" class="terminal-loader hidden">
+        <div class="loader-terminal-box">
+          <div class="loader-head">
+            <span class="mono-prompt">[yt-dlp::probe]</span>
+            <span class="loader-phase">FETCHING MANIFEST &amp; DUBBING TRACKS...</span>
+          </div>
+          <div class="loader-bar-track">
+            <div class="loader-bar-fill"></div>
+          </div>
+          <div class="loader-sub mono-text">Running Node.js EJS challenge solver • Querying web_embedded client stream map...</div>
+        </div>
+      </div>
+
+      <!-- State: Error Console -->
+      <div id="errorState" class="terminal-error-card hidden">
+        <div class="error-header-row">
+          <div class="error-badge">ERROR 500</div>
+          <span id="errorTitle" class="error-title-text">FAILED TO EXTRACT STREAMS</span>
+        </div>
+        <pre id="errorMessage" class="error-trace-log">Traceback: Verify network connection and URL format.</pre>
+      </div>
+
+      <!-- Section 2: Results & Demux Matrix -->
+      <div id="resultSection" class="matrix-section hidden">
+        <!-- Video Telemetry Header -->
+        <div class="video-meta-grid">
+          <div class="thumb-frame">
+            <img id="videoThumb" src="" alt="Frame Preview">
+            <div class="thumb-corner-overlay">
+              <span id="videoDuration" class="mono-tag-time">00:00:00</span>
+            </div>
+          </div>
+          <div class="video-details">
+            <div class="meta-channel-row">
+              <span class="channel-label">CHANNEL:</span>
+              <span id="videoAuthor" class="channel-name">-</span>
+            </div>
+            <h2 id="videoTitle" class="video-heading">-</h2>
+            <div class="stream-stats-bar">
+              <div class="stat-cell">
+                <span class="stat-label">AUDIO CHANNELS</span>
+                <span id="audioTracksCount" class="stat-value text-accent">0 TRACKS</span>
+              </div>
+              <div class="stat-cell">
+                <span class="stat-label">VIDEO RESOLUTIONS</span>
+                <span id="videoTracksCount" class="stat-value">0 FORMATS</span>
+              </div>
+              <div class="stat-cell">
+                <span class="stat-label">CONTAINER OUTPUT</span>
+                <span class="stat-value">MPEG-4 (.MP4)</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 3: Dual-Stream Selection Matrix -->
+        <div class="track-selector-section">
+          <div class="section-label-bar">
+            <span class="section-num">02</span>
+            <span class="section-title">STREAM SELECTION MATRIX</span>
+            <span class="section-meta">VIDEO &amp; AUDIO MERGED VIA FFMPEG LOSSLESS COPY</span>
+          </div>
+
+          <div class="selector-grid">
+            <!-- Video Stream Selector -->
+            <div class="selector-box">
+              <div class="box-header">
+                <!-- Custom Film Frame Icon -->
+                <svg class="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <rect x="3" y="4" width="18" height="16" rx="1"></rect>
+                  <line x1="3" y1="8.5" x2="21" y2="8.5"></line>
+                  <line x1="3" y1="15.5" x2="21" y2="15.5"></line>
+                  <line x1="8" y1="4" x2="8" y2="8.5"></line>
+                  <line x1="16" y1="4" x2="16" y2="8.5"></line>
+                  <line x1="8" y1="15.5" x2="8" y2="20"></line>
+                  <line x1="16" y1="15.5" x2="16" y2="20"></line>
+                </svg>
+                <div class="box-header-text">
+                  <span class="box-title">VIDEO RESOLUTION (PURE VIDEO STREAM)</span>
+                  <span class="box-desc">DASH video stream only (acodec=none, no embedded audio)</span>
+                </div>
+              </div>
+              <div class="custom-select-container">
+                <select id="videoSelect" class="matrix-select"></select>
+                <div class="select-chevron">&#9662;</div>
+              </div>
+            </div>
+
+            <!-- Audio Stream Selector -->
+            <div class="selector-box">
+              <div class="box-header">
+                <!-- Custom Audio Waveform / VU Spectrum Icon -->
+                <svg class="box-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                  <line x1="4" y1="10" x2="4" y2="14"></line>
+                  <line x1="7.2" y1="7" x2="7.2" y2="17"></line>
+                  <line x1="10.4" y1="4" x2="10.4" y2="20"></line>
+                  <line x1="13.6" y1="8" x2="13.6" y2="16"></line>
+                  <line x1="16.8" y1="6" x2="16.8" y2="18"></line>
+                  <line x1="20" y1="11" x2="20" y2="13"></line>
+                </svg>
+                <div class="box-header-text">
+                  <span class="box-title">AUDIO DUBBING TRACK (SINGLE STREAM)</span>
+                  <span class="box-desc">Multi-language master track (Indonesian, English, etc.)</span>
+                </div>
+              </div>
+              <div class="custom-select-container">
+                <select id="audioSelect" class="matrix-select"></select>
+                <div class="select-chevron">&#9662;</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Section 4: Target Directory Console (Signature Element) -->
+        <div class="storage-console">
+          <div class="console-label-row">
+            <span class="console-badge">[DEST_DIR]</span>
+            <span class="console-heading">TARGET OUTPUT PATH (AUTO CREATED)</span>
+          </div>
+          <div class="console-path-display">
+            <span class="console-prefix">&gt;</span>
+            <span id="targetFolderPreview" class="console-path-text">H:\YT-Downloader\hasil\Video_Title\Video_Title.mp4</span>
+          </div>
+        </div>
+
+        <!-- Section 5: Execution Action -->
+        <div class="execution-bar">
+          <button id="downloadBtn" class="btn-execute">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M21 15v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
+            <span id="downloadBtnText">EXECUTE DOWNLOAD &amp; MUX</span>
+          </button>
+        </div>
+
+        <!-- Section 6: Real-Time Telemetry & Progress Console -->
+        <div id="downloadStatusBox" class="telemetry-progress-console hidden">
+          <div class="telemetry-header">
+            <div class="telemetry-title-group">
+              <span class="status-led led-pulse"></span>
+              <span id="statusMessage" class="telemetry-status-text">INITIALIZING DOWNLOAD TASK...</span>
+            </div>
+            <!-- Large Real-time Percentage Indicator -->
+            <div class="telemetry-percent-box">
+              <span id="telemetryPercent" class="telemetry-percent-value">0.0%</span>
+            </div>
+          </div>
+
+          <!-- Step indicator pipeline -->
+          <div class="pipeline-steps">
+            <div class="pipeline-step step-active" id="step1">
+              <span class="step-dot"></span>
+              <span>1. PROBING</span>
+            </div>
+            <div class="pipeline-step" id="step2">
+              <span class="step-dot"></span>
+              <span>2. DOWNLOADING</span>
+            </div>
+            <div class="pipeline-step" id="step3">
+              <span class="step-dot"></span>
+              <span>3. FFMPEG MUXING</span>
+            </div>
+            <div class="pipeline-step" id="step4">
+              <span class="step-dot"></span>
+              <span>4. COMPLETED</span>
+            </div>
+          </div>
+
+          <!-- Precision Functional Progress Track -->
+          <div class="functional-progress-track">
+            <div id="progressBar" class="functional-progress-bar"></div>
+          </div>
+
+          <!-- Live Metrics Grid -->
+          <div class="telemetry-metrics-grid">
+            <div class="metric-item">
+              <span class="metric-key">SPEED:</span>
+              <span id="telemetrySpeed" class="metric-val text-accent">0.0 MB/s</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-key">ETA:</span>
+              <span id="telemetryEta" class="metric-val">--:--</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-key">DOWNLOADED:</span>
+              <span id="telemetryBytes" class="metric-val">0.0 MB / 0.0 MB</span>
+            </div>
+            <div class="metric-item">
+              <span class="metric-key">STAGE:</span>
+              <span id="telemetryStage" class="metric-val text-accent">ALLOCATING</span>
+            </div>
+          </div>
+
+          <div class="telemetry-footer-stats mono-text">
+            <span>[MAP: -map 0:v:0 -map 1:a:0]</span>
+            <span>[CONTAINER: MP4]</span>
+            <span>[ENCODER: LOSSLESS COPY + AAC]</span>
+          </div>
+        </div>
+
+        <!-- Section 7: Success Console Card -->
+        <div id="successCard" class="terminal-success-card hidden">
+          <div class="success-top-row">
+            <div class="success-flag">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>
+              <span>PROCESS COMPLETED (STATUS: 200 OK)</span>
+            </div>
+            <span id="successFileInfo" class="success-file-meta mono-text">0.0 MB</span>
+          </div>
+
+          <div class="success-details-box mono-text">
+            <div class="detail-row">
+              <span class="detail-key">OUTPUT FILE:</span>
+              <span id="savedFileName" class="detail-val text-accent">-</span>
+            </div>
+            <div class="detail-row">
+              <span class="detail-key">DISK PATH:</span>
+              <span id="savedPathText" class="detail-val">-</span>
+            </div>
+          </div>
+
+          <div class="success-action-row">
+            <button id="openSavedFolderBtn" class="btn-solid-accent">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path d="M3 6h6l2 2.5h10v10.5H3V6z"></path>
+                <line x1="3" y1="11" x2="21" y2="11"></line>
+              </svg>
+              <span>OPEN IN FILE EXPLORER</span>
+            </button>
+            <button id="streamBrowserBtn" class="btn-terminal-sm">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+                <path d="M21 15v4a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1v-4"></path>
+                <polyline points="7 10 12 15 17 10"></polyline>
+                <line x1="12" y1="15" x2="12" y2="3"></line>
+              </svg>
+              <span>BROWSER DOWNLOAD (COPY)</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer Terminal Info -->
+    <footer class="sys-footer">
+      <div class="footer-meta mono-text">
+        <span>CORE: python 3.10+</span>
+        <span>•</span>
+        <span>ENGINE: yt-dlp (web_embedded)</span>
+        <span>•</span>
+        <span>MUXER: ffmpeg v63.1</span>
+        <span>•</span>
+        <span>STORAGE: /hasil/{title}/{title}.mp4</span>
+      </div>
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
