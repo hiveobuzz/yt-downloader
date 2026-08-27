@@ -109,8 +109,8 @@ Klik dua kali file **`start.bat`** di direktori utama. Script akan otomatis meme
 
 1. **Clone repositori ini:**
    ```bash
-   git clone https://github.com/adewanggar/YT-Downloader.git
-   cd YT-Downloader
+   git clone https://github.com/adewanggar/yt-downloader.git
+   cd yt-downloader
    ```
 
 2. **Buat dan aktifkan Virtual Environment (Disarankan):**
