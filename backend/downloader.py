@@ -77,16 +77,49 @@ def format_language_label(lang_code: str, note: str) -> str:
     return note_clean
 
 
+def extract_info_robust(url: str, is_download: bool = False, custom_opts: dict = None) -> dict:
+    """
+    Mencoba mengekstrak info video dengan berbagai player client (iOS, Android, TV, MWeb)
+    secara otomatis jika salah satu client dicegat bot detection YouTube.
+    """
+    client_strategies = [
+        ["ios"],
+        ["android"],
+        ["tv_embedded", "tv"],
+        ["mweb", "web_embedded"],
+    ]
+
+    last_error = None
+    for clients in client_strategies:
+        try:
+            extra = dict(custom_opts or {})
+            extra["extractor_args"] = {
+                "youtube": {
+                    "player_client": clients
+                }
+            }
+            ydl_opts = get_base_ydl_opts(extra)
+            with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+                return ydl.extract_info(url, download=is_download)
+        except Exception as e:
+            last_error = e
+            err_msg = str(e).lower()
+            if "not a bot" not in err_msg and "sign in" not in err_msg and "429" not in err_msg:
+                raise e
+            continue
+
+    if last_error:
+        raise last_error
+
+
 def get_video_info(url: str) -> dict:
     """
     Mengambil metadata video: judul, thumbnail, durasi,
     daftar resolusi video (video-only murni tanpa audio bawaan),
     dan SEMUA daftar audio track/dubbing.
     """
-    ydl_opts = get_base_ydl_opts({"skip_download": True})
+    info = extract_info_robust(url, is_download=False, custom_opts={"skip_download": True})
 
-    with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info(url, download=False)
 
     formats = info.get("formats", [])
 
