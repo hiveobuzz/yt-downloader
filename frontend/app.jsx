@@ -2,10 +2,9 @@ const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 // ========================================================
 // KONFIGURASI BACKEND RAILWAY (DEFAULT)
-// Jika di-deploy ke Vercel, isi URL Railway Anda di bawah ini
-// Contoh: "https://yt-downloader-production.up.railway.app"
 // ========================================================
-const DEFAULT_RAILWAY_URL = "";
+const DEFAULT_RAILWAY_URL = "https://yt-downloader-production-1051.up.railway.app";
+
 
 // Helper Functions
 function formatDuration(seconds) {
@@ -63,11 +62,15 @@ function App() {
   const eventSourceRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
-  // Compute API_BASE
+  // Compute API_BASE (Auto add https:// jika belum ada)
   const apiBase = useMemo(() => {
     const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     if (backendUrl && backendUrl.trim()) {
-      return backendUrl.replace(/\/+$/, "") + "/api";
+      let clean = backendUrl.trim().replace(/\/+$/, "");
+      if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
+        clean = "https://" + clean;
+      }
+      return clean + "/api";
     }
     if (isLocal) {
       return window.location.port === "5000" ? "/api" : "http://localhost:5000/api";
