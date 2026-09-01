@@ -11,18 +11,55 @@ os.makedirs(HASIL_DIR, exist_ok=True)
 # Registry realtime status download: job_id -> status dict
 JOBS = {}
 
-# Konfigurasi yt-dlp untuk multi-audio & dubbing
-BASE_YDL_OPTS = {
-    "quiet": True,
-    "no_warnings": True,
-    "js_runtimes": {"node": {}},
-    "remote_components": {"ejs:github"},
-    "extractor_args": {
-        "youtube": {
-            "player_client": ["web_embedded", "web", "android"]
+
+def get_base_ydl_opts(extra_opts=None) -> dict:
+    """
+    Menghasilkan konfigurasi yt-dlp yang dioptimalkan untuk Cloud (Railway).
+    Otomatis memuat cookies dari Environment Variable YOUTUBE_COOKIES atau file cookies.txt
+    serta menggunakan client mobile/embedded untuk mencegah bot detection YouTube.
+    """
+    opts = {
+        "quiet": True,
+        "no_warnings": True,
+        "nocheckcertificate": True,
+        "js_runtimes": {"node": {}},
+        "remote_components": {"ejs:github"},
+        "extractor_args": {
+            "youtube": {
+                "player_client": ["android", "ios", "mweb", "tv_embedded"]
+            }
+        },
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
         }
     }
-}
+
+    # 1. Cek Environment Variable YOUTUBE_COOKIES di Railway / Server
+    cookies_env = os.environ.get("YOUTUBE_COOKIES")
+    if cookies_env and cookies_env.strip():
+        tmp_cookie_file = "/tmp/youtube_cookies.txt" if os.name != "nt" else os.path.join(BASE_DIR, "tmp_cookies.txt")
+        try:
+            with open(tmp_cookie_file, "w", encoding="utf-8") as f:
+                f.write(cookies_env.strip())
+            opts["cookiefile"] = tmp_cookie_file
+        except Exception as e:
+            print(f"[Warning] Gagal membuat file cookie dari env: {e}")
+
+    # 2. Cek file cookies.txt lokal jika ada
+    cookie_paths = [
+        os.path.join(BASE_DIR, "cookies.txt"),
+        os.path.join(BASE_DIR, "..", "cookies.txt"),
+        "cookies.txt"
+    ]
+    for cp in cookie_paths:
+        if os.path.exists(cp):
+            opts["cookiefile"] = cp
+            break
+
+    if extra_opts:
+        opts.update(extra_opts)
+
+    return opts
 
 
 def sanitize_filename(name: str) -> str:
@@ -46,10 +83,7 @@ def get_video_info(url: str) -> dict:
     daftar resolusi video (video-only murni tanpa audio bawaan),
     dan SEMUA daftar audio track/dubbing.
     """
-    ydl_opts = {
-        **BASE_YDL_OPTS,
-        "skip_download": True,
-    }
+    ydl_opts = get_base_ydl_opts({"skip_download": True})
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False)
@@ -210,7 +244,7 @@ def download_with_selected_tracks(
 
     try:
         # 1. Ambil info judul asli
-        with yt_dlp.YoutubeDL({**BASE_YDL_OPTS, "skip_download": True}) as ydl:
+        with yt_dlp.YoutubeDL(get_base_ydl_opts({"skip_download": True})) as ydl:
             info = ydl.extract_info(url, download=False)
             raw_title = info.get("title", "Video_YouTube")
             safe_title = sanitize_filename(raw_title)
@@ -312,8 +346,7 @@ def download_with_selected_tracks(
             format_selector = audio_format_id if audio_format_id and audio_format_id != "none" else "bestaudio"
             final_file_path = os.path.join(target_folder, f"{safe_title}.mp3")
 
-            ydl_opts = {
-                **BASE_YDL_OPTS,
+            ydl_opts = get_base_ydl_opts({
                 "format": format_selector,
                 "outtmpl": output_template,
                 "progress_hooks": [yt_progress_hook],
@@ -329,14 +362,13 @@ def download_with_selected_tracks(
                         "add_metadata": True,
                     }
                 ],
-            }
+            })
         else:
             # Mode Video: Dual-stream download + FFmpeg lossless mux to MP4
             format_selector = f"{video_format_id}+{audio_format_id}" if audio_format_id != "none" else video_format_id
             final_file_path = os.path.join(target_folder, f"{safe_title}.mp4")
 
-            ydl_opts = {
-                **BASE_YDL_OPTS,
+            ydl_opts = get_base_ydl_opts({
                 "format": format_selector,
                 "outtmpl": output_template,
                 "merge_output_format": "mp4",
@@ -349,7 +381,7 @@ def download_with_selected_tracks(
                     "key": "FFmpegVideoConvertor",
                     "preferedformat": "mp4",
                 }],
-            }
+            })
 
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
             ydl.download([url])

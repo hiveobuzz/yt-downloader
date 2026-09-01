@@ -20,3 +20,10 @@ Hasil/
 # OS
 .DS_Store
 Thumbs.db
+
+# Authentication / Cookies
+*cookies*.txt
+cookies.txt
+tmp_cookies.txt
+*.cookie
+
