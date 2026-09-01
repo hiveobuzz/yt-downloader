@@ -14,9 +14,8 @@ JOBS = {}
 
 def get_base_ydl_opts(extra_opts=None) -> dict:
     """
-    Menghasilkan konfigurasi yt-dlp yang dioptimalkan untuk Cloud (Railway).
-    Otomatis memuat cookies dari Environment Variable YOUTUBE_COOKIES atau file cookies.txt
-    serta menggunakan client mobile/embedded untuk mencegah bot detection YouTube.
+    Menghasilkan konfigurasi yt-dlp yang dioptimalkan untuk Cloud & Colab.
+    Otomatis memuat cookies dari Environment Variable YOUTUBE_COOKIES atau file cookies.txt.
     """
     opts = {
         "quiet": True,
@@ -26,7 +25,7 @@ def get_base_ydl_opts(extra_opts=None) -> dict:
         "remote_components": {"ejs:github"},
         "extractor_args": {
             "youtube": {
-                "player_client": ["android", "ios", "mweb", "tv_embedded"]
+                "player_client": ["web", "mweb", "android", "ios"]
             }
         },
         "http_headers": {
@@ -79,14 +78,15 @@ def format_language_label(lang_code: str, note: str) -> str:
 
 def extract_info_robust(url: str, is_download: bool = False, custom_opts: dict = None) -> dict:
     """
-    Mencoba mengekstrak info video dengan berbagai player client (iOS, Android, TV, MWeb)
-    secara otomatis jika salah satu client dicegat bot detection YouTube.
+    Mencoba mengekstrak info video dengan berbagai player client (Web, MWeb, Android, iOS, TV)
+    secara otomatis jika salah satu client dibatasi oleh YouTube.
     """
     client_strategies = [
-        ["ios"],
-        ["android"],
-        ["tv_embedded", "tv"],
-        ["mweb", "web_embedded"],
+        ["web", "mweb", "android", "ios"],
+        ["mweb", "android", "ios"],
+        ["android", "ios"],
+        ["ios", "mweb"],
+        ["tv_embedded", "web_embedded"]
     ]
 
     last_error = None
@@ -100,16 +100,16 @@ def extract_info_robust(url: str, is_download: bool = False, custom_opts: dict =
             }
             ydl_opts = get_base_ydl_opts(extra)
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-                return ydl.extract_info(url, download=is_download)
+                info = ydl.extract_info(url, download=is_download)
+                if info:
+                    return info
         except Exception as e:
             last_error = e
-            err_msg = str(e).lower()
-            if "not a bot" not in err_msg and "sign in" not in err_msg and "429" not in err_msg:
-                raise e
             continue
 
     if last_error:
         raise last_error
+
 
 
 def get_video_info(url: str) -> dict:
