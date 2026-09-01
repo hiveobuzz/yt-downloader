@@ -1,10 +1,9 @@
 const { useState, useEffect, useRef, useMemo, useCallback } = React;
 
 // ========================================================
-// KONFIGURASI BACKEND RAILWAY (DEFAULT)
+// KONFIGURASI BACKEND CLOUD
 // ========================================================
 const DEFAULT_RAILWAY_URL = "https://yt-downloader-production-1051.up.railway.app";
-
 
 // Helper Functions
 function formatDuration(seconds) {
@@ -31,7 +30,7 @@ function sanitizeForPreview(name) {
 
 function App() {
   const [backendUrl, setBackendUrl] = useState(() => {
-    return localStorage.getItem("YT_BACKEND_URL") || DEFAULT_RAILWAY_URL;
+    return localStorage.getItem("YT_BACKEND_URL") || "";
   });
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [backendHealth, setBackendHealth] = useState({ status: "checking", message: "Memeriksa..." });
@@ -62,9 +61,11 @@ function App() {
   const eventSourceRef = useRef(null);
   const pollIntervalRef = useRef(null);
 
-  // Compute API_BASE (Auto add https:// jika belum ada)
+  // Compute API_BASE:
+  // 1. Jika diisi manual di settings modal -> pakai custom URL tersebut.
+  // 2. Jika dibuka di Google Colab (trycloudflare.com / ngrok / localhost) -> panggil /api langsung ke Colab.
+  // 3. Jika dibuka di Vercel (*.vercel.app) -> panggil backend Railway.
   const apiBase = useMemo(() => {
-    const isLocal = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
     if (backendUrl && backendUrl.trim()) {
       let clean = backendUrl.trim().replace(/\/+$/, "");
       if (!clean.startsWith("http://") && !clean.startsWith("https://")) {
@@ -72,9 +73,14 @@ function App() {
       }
       return clean + "/api";
     }
-    if (isLocal) {
-      return window.location.port === "5000" ? "/api" : "http://localhost:5000/api";
+
+    const host = window.location.hostname;
+    // Jika di Vercel dan belum diisi manual, arahkan ke Railway
+    if (host.includes("vercel.app")) {
+      return DEFAULT_RAILWAY_URL + "/api";
     }
+
+    // Jika di Google Colab (Cloudflare tunnel), Localhost, atau server mandiri -> pakai /api
     return "/api";
   }, [backendUrl]);
 
