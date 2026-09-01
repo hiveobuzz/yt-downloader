@@ -11,28 +11,49 @@ from downloader import get_video_info, download_with_selected_tracks, HASIL_DIR,
 FRONTEND_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "frontend"))
 
 app = Flask(__name__, static_folder=FRONTEND_DIR)
-CORS(app)
+# Izinkan CORS untuk semua origin (termasuk domain Vercel & localhost)
+CORS(app, resources={r"/api/*": {"origins": "*"}})
 
 
-# Pembersihan otomatis job registry lama
-def cleanup_old_jobs():
+# Pembersihan otomatis job registry dan file cache lama (> 2 jam) untuk hemat disk di Railway
+def cleanup_old_data():
     while True:
         try:
-            time.sleep(300)
-            # Batasi ukuran registry jika lebih dari 100 job
+            time.sleep(600)  # Cek setiap 10 menit
+            now = time.time()
+
+            # 1. Batasi ukuran registry jika lebih dari 100 job
             if len(JOBS) > 100:
                 keys = list(JOBS.keys())[:50]
                 for k in keys:
                     JOBS.pop(k, None)
+
+            # 2. Hapus file unduhan di HASIL_DIR yang lebih lama dari 2 jam (7200 detik)
+            if os.path.exists(HASIL_DIR):
+                for root, dirs, files in os.walk(HASIL_DIR, topdown=False):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        try:
+                            if os.stat(file_path).st_mtime < (now - 7200):
+                                os.remove(file_path)
+                        except Exception:
+                            pass
+                    for d in dirs:
+                        dir_path = os.path.join(root, d)
+                        try:
+                            if not os.listdir(dir_path):
+                                os.rmdir(dir_path)
+                        except Exception:
+                            pass
         except Exception:
             pass
 
 
-cleanup_thread = threading.Thread(target=cleanup_old_jobs, daemon=True)
+cleanup_thread = threading.Thread(target=cleanup_old_data, daemon=True)
 cleanup_thread.start()
 
 
-# Serve Frontend
+# Serve Frontend (jika di-host bersama)
 @app.route("/")
 def serve_index():
     return send_from_directory(FRONTEND_DIR, "index.html")
@@ -48,9 +69,11 @@ def serve_static(path):
 # REST API Endpoints
 @app.route("/api/health", methods=["GET"])
 def health_check():
+    is_cloud = bool(os.environ.get("RAILWAY_ENVIRONMENT") or os.environ.get("VERCEL") or os.name != "nt")
     return jsonify({
         "status": "ok",
         "message": "YouTube Downloader API is running",
+        "environment": "cloud" if is_cloud else "local",
         "hasil_dir": HASIL_DIR
     })
 
@@ -162,9 +185,17 @@ def api_progress_stream(job_id):
 
 @app.route("/api/open-folder", methods=["POST"])
 def api_open_folder():
-    """Membuka folder hasil download di Windows File Explorer."""
+    """Membuka folder hasil download di Windows File Explorer (Mode Desktop/Lokal)."""
     data = request.get_json() or {}
     path = data.get("path") or HASIL_DIR
+
+    # Cek jika backend berjalan di Cloud/Railway tanpa GUI Desktop
+    if os.environ.get("RAILWAY_ENVIRONMENT") or (os.name != "nt" and not os.environ.get("DISPLAY")):
+        return jsonify({
+            "status": "info",
+            "is_cloud": True,
+            "message": "Backend berjalan di Cloud Server (Railway). Silakan unduh file langsung ke perangkat Anda melalui browser."
+        })
 
     try:
         norm_path = os.path.normpath(path)

@@ -1,7 +1,31 @@
-// API Base URL Detection
-const API_BASE = window.location.port === "5000" || window.location.hostname === "localhost" 
-  ? "/api" 
-  : "http://localhost:5000/api";
+// ========================================================
+// KONFIGURASI BACKEND CLOUD (RAILWAY)
+// Masukkan domain Railway Anda di sini jika di-deploy ke Vercel:
+// Contoh: const CONFIG_RAILWAY_URL = "https://yt-downloader-production.up.railway.app";
+// ========================================================
+const CONFIG_RAILWAY_URL = ""; 
+
+function resolveApiBase() {
+  const custom = localStorage.getItem("YT_CUSTOM_API_URL");
+  if (custom) return custom.replace(/\/+$/, "") + "/api";
+
+  const isLocalHost = window.location.hostname === "localhost" || 
+                      window.location.hostname === "127.0.0.1" || 
+                      window.location.hostname === "0.0.0.0";
+
+  if (isLocalHost) {
+    return window.location.port === "5000" ? "/api" : "http://localhost:5000/api";
+  }
+
+  if (CONFIG_RAILWAY_URL && CONFIG_RAILWAY_URL.trim() !== "") {
+    return CONFIG_RAILWAY_URL.replace(/\/+$/, "") + "/api";
+  }
+
+  return "/api";
+}
+
+const API_BASE = resolveApiBase();
+const IS_LOCAL = window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1";
 
 // Elements
 const urlInput = document.getElementById("urlInput");
@@ -126,8 +150,12 @@ pasteBtn.addEventListener("click", async () => {
   }
 });
 
-// Open Main Folder in File Explorer
+// Open Main Folder in File Explorer (Local Mode)
 async function openFolder(path = "") {
+  if (!IS_LOCAL) {
+    alert("Backend berjalan di Cloud Server (Railway). File hasil download dapat langsung disimpan ke perangkat menggunakan tombol unduh.");
+    return;
+  }
   try {
     const res = await fetch(`${API_BASE}/open-folder`, {
       method: "POST",
@@ -141,6 +169,16 @@ async function openFolder(path = "") {
   } catch (err) {
     alert("Gagal menghubungi server untuk membuka File Explorer.");
   }
+}
+
+if (!IS_LOCAL && openMainFolderBtn) {
+  openMainFolderBtn.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75">
+      <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"></path>
+    </svg>
+    <span>CLOUD MODE</span>
+  `;
+  openMainFolderBtn.title = "Aplikasi berjalan di Cloud Server (Railway)";
 }
 
 openMainFolderBtn.addEventListener("click", () => openFolder(""));
@@ -185,7 +223,11 @@ function updatePreviewPath() {
   if (!currentVideoData) return;
   const safeName = sanitizeForPreview(currentVideoData.title);
   const ext = currentMode === "mp3" ? "mp3" : "mp4";
-  targetFolderPreview.textContent = `H:\\YT-Downloader\\hasil\\${safeName}\\${safeName}.${ext}`;
+  if (IS_LOCAL) {
+    targetFolderPreview.textContent = `hasil\\${safeName}\\${safeName}.${ext}`;
+  } else {
+    targetFolderPreview.textContent = `Cloud Server: /tmp/${safeName}.${ext} (Siap diunduh)`;
+  }
 }
 
 function setMode(mode) {
@@ -436,7 +478,27 @@ function onDownloadComplete(resultData) {
   setTimeout(() => {
     downloadStatusBox.classList.add("hidden");
     savedFileName.textContent = lastDownloadResult.filename || (currentMode === "mp3" ? "output.mp3" : "output.mp4");
-    savedPathText.textContent = lastDownloadResult.file_path || (currentMode === "mp3" ? "hasil/audio.mp3" : "hasil/video.mp4");
+    
+    if (IS_LOCAL) {
+      savedPathText.textContent = lastDownloadResult.file_path || (currentMode === "mp3" ? "hasil/audio.mp3" : "hasil/video.mp4");
+    } else {
+      savedPathText.textContent = "File siap disimpan langsung ke perangkat / HP Anda";
+      if (openSavedFolderBtn) {
+        openSavedFolderBtn.style.display = "none";
+      }
+      if (streamBrowserBtn) {
+        streamBrowserBtn.className = "btn-solid-accent";
+        streamBrowserBtn.innerHTML = `
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span>SIMPAN KE PERANGKAT (DOWNLOAD)</span>
+        `;
+      }
+    }
+    
     const containerText = lastDownloadResult.format || (currentMode === "mp3" ? "MP3 AUDIO (320 kbps)" : "ISO MP4");
     successFileInfo.textContent = `SIZE: ${formatBytes(lastDownloadResult.file_size)} • CONTAINER: ${containerText}`;
     successCard.classList.remove("hidden");
